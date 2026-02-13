@@ -56,6 +56,7 @@
             border-radius:0.5rem; color:var(--text); font-size:0.95rem;
             font-family:'JetBrains Mono',monospace; transition:all 0.2s; min-width:140px;
         }
+        #weekSel { min-width:280px; }
         select:focus, input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
         .current-week-badge {
             padding:0.7rem 1.25rem; background:rgba(34,197,94,0.1);
@@ -402,7 +403,8 @@ function initWeekDropdown(year, selectWeek) {
     sel.innerHTML = '';
     for (let w = 1; w <= total; w++) {
         const o = document.createElement('option');
-        o.value = w; o.textContent = `Week ${w}`;
+        o.value = w;
+        o.textContent = `Week ${w}  ·  ${getWeekDates(year, w)}`;
         if (selectWeek && w === selectWeek) o.selected = true;
         sel.appendChild(o);
     }
