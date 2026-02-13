@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --primary:#2563eb; --primary-dark:#1e40af;
+            --bg:#0f172a; --card:#1e293b; --input:#334155;
+            --text:#f1f5f9; --muted:#94a3b8; --border:#334155;
+            --accent:#3b82f6; --success:#10b981; --danger:#ef4444;
+            --green:#22c55e;
+        }
+        body {
+            font-family:'DM Sans',sans-serif;
+            background:var(--bg); color:var(--text); min-height:100vh;
+            background-image:
+                radial-gradient(circle at 15% 40%, rgba(37,99,235,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 85% 70%, rgba(34,197,94,0.04) 0%, transparent 50%);
+        }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            background:var(--card); border-bottom:1px solid var(--border);
+            padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between;
+            position:sticky; top:0; z-index:50;
+        }
+        .topbar-left h1 { font-size:1.4rem; font-weight:700; background:linear-gradient(135deg,var(--text),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .topbar-left p { font-size:0.8rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:0.1rem; }
+        .employee-name-badge {
+            padding:0.5rem 1.25rem; background:rgba(59,130,246,0.1);
+            border:1px solid rgba(59,130,246,0.3); border-radius:2rem;
+            font-size:0.9rem; font-weight:600; color:var(--accent);
+            cursor:pointer; transition:all 0.2s;
+        }
+        .employee-name-badge:hover { background:rgba(59,130,246,0.2); }
+
+        /* ── MAIN ── */
+        .container { max-width:1300px; margin:0 auto; padding:2rem; }
+
+        /* ── WEEK SELECTOR ── */
+        .week-selector-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:1rem; padding:1.75rem; margin-bottom:2rem;
+        }
+        .week-selector-card h3 { font-size:1.1rem; font-weight:600; margin-bottom:1.25rem; }
+        .week-selector-row { display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; }
+        .form-group { display:flex; flex-direction:column; gap:0.4rem; }
+        label { font-size:0.78rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+        select, input {
+            padding:0.7rem 0.9rem; background:var(--input); border:1px solid var(--border);
+            border-radius:0.5rem; color:var(--text); font-size:0.95rem;
+            font-family:'JetBrains Mono',monospace; transition:all 0.2s; min-width:140px;
+        }
+        select:focus, input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
+        .current-week-badge {
+            padding:0.7rem 1.25rem; background:rgba(34,197,94,0.1);
+            border:1px solid rgba(34,197,94,0.3); border-radius:0.5rem;
+            font-family:'JetBrains Mono',monospace; font-size:0.85rem;
+            color:var(--green); white-space:nowrap;
+        }
+
+        /* ── GRAPHS MANAGEMENT ── */
+        .graphs-mgmt {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:1rem; padding:1.75rem; margin-bottom:2rem;
+        }
+        .graphs-mgmt h3 { font-size:1.1rem; font-weight:600; margin-bottom:1.25rem; }
+        .add-graph-row { display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; }
+        .add-graph-row .form-group { flex:1; min-width:200px; }
+
+        /* ── DATA ENTRY ── */
+        .data-entry-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:1rem; padding:1.75rem; margin-bottom:2rem;
+        }
+        .data-entry-card h3 { font-size:1.1rem; font-weight:600; margin-bottom:1.25rem; }
+        .entry-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1rem; }
+
+        /* ── BUTTONS ── */
+        button {
+            padding:0.7rem 1.4rem; border:none; border-radius:0.5rem;
+            font-size:0.9rem; font-weight:600; cursor:pointer;
+            transition:all 0.2s; font-family:'DM Sans',sans-serif;
+        }
+        .btn-primary { background:var(--primary); color:white; }
+        .btn-primary:hover { background:var(--primary-dark); transform:translateY(-1px); box-shadow:0 4px 12px rgba(37,99,235,0.3); }
+        .btn-secondary { background:var(--input); color:var(--text); border:1px solid var(--border); }
+        .btn-secondary:hover { background:var(--border); }
+        .btn-success { background:var(--success); color:white; }
+        .btn-success:hover { background:#059669; }
+        .btn-danger { background:transparent; color:var(--danger); border:1px solid var(--danger); font-size:0.8rem; padding:0.35rem 0.75rem; }
+        .btn-danger:hover { background:var(--danger); color:white; }
+        .btn-group { display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:1rem; }
+
+        /* ── TIME NAV ── */
+        .time-nav {
+            display:flex; align-items:center; justify-content:center;
+            gap:0.75rem; margin-bottom:2rem; padding:1.1rem 1.5rem;
+            background:var(--card); border:1px solid var(--border);
+            border-radius:1rem; flex-wrap:wrap;
+        }
+        .time-display {
+            padding:0.55rem 1.5rem; background:var(--input); border-radius:0.5rem;
+            font-family:'JetBrains Mono',monospace; font-weight:600;
+            color:var(--accent); min-width:200px; text-align:center; font-size:0.85rem;
+        }
+        .nav-btn {
+            padding:0.55rem 1.1rem; background:var(--input);
+            color:var(--text); border:1px solid var(--border);
+            border-radius:0.5rem; cursor:pointer; font-weight:500;
+            font-size:0.85rem; white-space:nowrap; transition:all 0.2s;
+        }
+        .nav-btn:hover { background:var(--border); transform:translateY(-1px); }
+        .nav-btn.accent { background:rgba(59,130,246,0.1); border-color:rgba(59,130,246,0.3); }
+        .nav-btn.accent:hover { background:rgba(59,130,246,0.2); border-color:var(--accent); }
+        .nav-btn.reset { background:var(--accent); color:white; border-color:var(--accent); }
+        .nav-btn.reset:hover { background:var(--primary-dark); }
+
+        /* ── CHARTS ── */
+        .charts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(480px,1fr)); gap:1.5rem; margin-bottom:2rem; }
+        .chart-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:1rem; padding:1.5rem; transition:all 0.3s;
+        }
+        .chart-card:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.25); }
+        .chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+        .chart-title { font-size:1.05rem; font-weight:600; }
+        .chart-value { font-size:1.35rem; font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--accent); }
+        .chart-canvas { position:relative; height:260px; }
+
+        /* ── TABLE ── */
+        .history-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:1rem; overflow:hidden; margin-bottom:2rem;
+        }
+        .history-header { padding:1.1rem 1.5rem; border-bottom:1px solid var(--border); font-weight:600; font-size:1rem; }
+        table { width:100%; border-collapse:collapse; }
+        thead { background:var(--input); }
+        th { padding:0.75rem 1rem; text-align:left; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); }
+        td { padding:0.75rem 1rem; border-top:1px solid var(--border); font-family:'JetBrains Mono',monospace; font-size:0.85rem; }
+        tbody tr:hover { background:rgba(59,130,246,0.04); }
+        .act-btn { padding:0.25rem 0.6rem; font-size:0.75rem; border-radius:0.25rem; border:1px solid; cursor:pointer; background:transparent; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-right:0.25rem; }
+        .act-edit { color:var(--accent); border-color:var(--accent); }
+        .act-edit:hover { background:var(--accent); color:white; }
+        .act-del { color:var(--danger); border-color:var(--danger); }
+        .act-del:hover { background:var(--danger); color:white; }
+
+        /* ── MODAL ── */
+        .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:200; display:none; align-items:center; justify-content:center; }
+        .overlay.open { display:flex; }
+        .modal { background:var(--card); border:1px solid var(--border); border-radius:1rem; padding:2rem; width:100%; max-width:420px; margin:1rem; }
+        .modal h3 { font-size:1.2rem; margin-bottom:1.5rem; }
+        .modal .form-group { margin-bottom:1rem; }
+        .modal input { width:100%; }
+
+        /* ── BREAKDOWN PANEL ── */
+        .chart-wrapper { display:flex; gap:1rem; align-items:flex-start; }
+        .chart-canvas { position:relative; height:260px; flex:1; min-width:0; }
+        .breakdown-panel {
+            width:210px; min-width:210px; background:var(--bg);
+            border:1px solid var(--border); border-radius:0.75rem;
+            padding:0.9rem; display:flex; flex-direction:column; gap:0.5rem;
+            max-height:300px; overflow-y:auto;
+        }
+        .breakdown-panel-title {
+            font-size:0.72rem; font-weight:700; color:var(--muted);
+            text-transform:uppercase; letter-spacing:0.05em;
+            padding-bottom:0.4rem; border-bottom:1px solid var(--border);
+        }
+        .breakdown-week-label { font-size:0.75rem; color:var(--accent); font-family:'JetBrains Mono',monospace; }
+        .breakdown-item {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:0.3rem 0.5rem; border-radius:0.35rem;
+            background:rgba(59,130,246,0.06); font-size:0.82rem; gap:0.4rem;
+        }
+        .breakdown-item-name { color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.82rem; }
+        .breakdown-item-del { background:transparent; border:none; color:var(--muted); cursor:pointer; padding:0; font-size:0.85rem; line-height:1; flex-shrink:0; }
+        .breakdown-item-del:hover { color:var(--danger); }
+        .breakdown-add-row { display:flex; gap:0.4rem; margin-top:0.25rem; }
+        .breakdown-add-row input { flex:1; padding:0.4rem 0.6rem; font-size:0.8rem; min-width:0; border-radius:0.35rem; font-family:'DM Sans',sans-serif; }
+        .breakdown-add-btn { padding:0.4rem 0.65rem; font-size:0.85rem; border-radius:0.35rem; background:var(--accent); color:white; border:none; cursor:pointer; flex-shrink:0; font-weight:700; }
+        .breakdown-add-btn:hover { background:var(--primary-dark); }
+        .breakdown-empty { font-size:0.78rem; color:var(--muted); font-style:italic; text-align:center; padding:0.4rem 0; }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align:center; padding:3rem; color:var(--muted);
+        }
+        .empty-state .icon { font-size:3rem; margin-bottom:1rem; }
+
+        /* ── WEEK NUMBER HELPER ── */
+        .week-info { font-size:0.78rem; color:var(--muted); margin-top:0.3rem; font-family:'JetBrains Mono',monospace; }
+
+        @media(max-width:768px){ .charts-grid{grid-template-columns:1fr;} .week-selector-row{flex-direction:column;} }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <div class="topbar-left">
+        <h1>📋 Employee Dashboard</h1>
+        <p>Weekly Performance Tracker</p>
+    </div>
+    <div class="employee-name-badge" onclick="openNameModal()" id="empNameBadge">
+        👤 Set Your Name
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- WEEK SELECTOR -->
+    <div class="week-selector-card">
+        <h3>📅 Select Week</h3>
+        <div class="week-selector-row">
+            <div class="form-group">
+                <label>Week Number</label>
+                <select id="weekSel"></select>
+                <div class="week-info" id="weekDateRange">—</div>
+            </div>
+            <div class="form-group">
+                <label>Year</label>
+                <select id="yearSel"></select>
+            </div>
+            <div class="current-week-badge" id="currentWeekBadge">
+                📍 Current: Week —
+            </div>
+            <button class="btn-secondary" onclick="goToCurrentWeek()">Go to Current Week</button>
+        </div>
+    </div>
+
+    <!-- MANAGE GRAPHS -->
+    <div class="graphs-mgmt">
+        <h3>📈 My Graphs</h3>
+        <div class="add-graph-row">
+            <div class="form-group">
+                <label>New Graph Name</label>
+                <input type="text" id="newGraphName" placeholder="e.g. Sales, Calls, Leads..." />
+            </div>
+            <button class="btn-primary" onclick="addGraph()" style="height:44px;">+ Add Graph</button>
+        </div>
+        <div id="graphTagsList" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:1rem;"></div>
+    </div>
+
+    <!-- DATA ENTRY -->
+    <div class="data-entry-card" id="dataEntryCard">
+        <h3>✏️ Enter Data for <span id="entryWeekLabel" style="color:var(--accent)">—</span></h3>
+        <form id="dataForm">
+            <div class="entry-grid" id="entryInputs">
+                <div class="empty-state" style="padding:1rem;grid-column:1/-1;">
+                    <p>Add graphs above to start entering data.</p>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button type="submit" class="btn-primary">💾 Save Week</button>
+                <button type="button" class="btn-secondary" onclick="clearForm()">Clear</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- TIME NAV -->
+    <div class="time-nav">
+        <button class="nav-btn" onclick="shift(-12)">⏪ -12 Weeks</button>
+        <button class="nav-btn accent" onclick="shift(-4)">⬅️ 4 Weeks</button>
+        <button class="nav-btn accent" onclick="shift(-1)">⬅️ 1 Week</button>
+        <div class="time-display" id="rangeDisplay">Last 12 Weeks</div>
+        <button class="nav-btn accent" onclick="shift(1)">1 Week ➡️</button>
+        <button class="nav-btn accent" onclick="shift(4)">4 Weeks ➡️</button>
+        <button class="nav-btn" onclick="shift(12)">+12 Weeks ⏩</button>
+        <button class="nav-btn reset" onclick="resetView()">📅 Latest</button>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid" id="chartsGrid"></div>
+
+    <!-- HISTORY TABLE -->
+    <div class="history-card">
+        <div class="history-header">📊 Historical Data</div>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead><tr id="tableHead"></tr></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- SET NAME MODAL -->
+<div class="overlay" id="nameModal">
+    <div class="modal">
+        <h3>👤 Set Your Name</h3>
+        <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" id="nameInput" placeholder="e.g. John Smith" />
+        </div>
+        <div class="btn-group">
+            <button class="btn-primary" onclick="saveName()">Save</button>
+            <button class="btn-secondary" onclick="closeNameModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+//  STATE
+// ═══════════════════════════════════
+let employeeName = localStorage.getItem('emp_name') || '';
+let graphs = JSON.parse(localStorage.getItem('emp_graphs') || '{}');
+// graphs = { id: { name, data: [{ week: 'YYYY-WXX', value }] } }
+let charts = {};
+let viewOffset = 0; // 0 = latest 12 weeks
+
+// ═══════════════════════════════════
+//  WEEK UTILITIES
+// ═══════════════════════════════════
+function getWeekNumber(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return [date.getUTCFullYear(), Math.ceil((((date - yearStart) / 86400000) + 1) / 7)];
+}
+
+function getWeekDates(year, week) {
+    const jan1 = new Date(year, 0, 1);
+    const daysOffset = (week - 1) * 7;
+    const dayOfWeek = jan1.getDay() || 7;
+    const monday = new Date(jan1);
+    monday.setDate(jan1.getDate() + daysOffset - dayOfWeek + 1);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    return `${fmt(monday)} – ${fmt(sunday)}`;
+}
+
+function weeksInYear(year) {
+    const dec28 = new Date(year, 11, 28);
+    return getWeekNumber(dec28)[1];
+}
+
+function weekKey(year, week) {
+    return `${year}-W${String(week).padStart(2,'0')}`;
+}
+
+function parseWeekKey(key) {
+    const [y, w] = key.split('-W');
+    return { year: parseInt(y), week: parseInt(w) };
+}
+
+function fmtWeekKey(key) {
+    const { year, week } = parseWeekKey(key);
+    return `W${String(week).padStart(2,'0')} ${year}`;
+}
+
+function compareWeekKeys(a, b) { return a.localeCompare(b); }
+
+function getAllWeekKeys() {
+    const all = new Set();
+    Object.values(graphs).forEach(g => g.data.forEach(d => all.add(d.week)));
+    return [...all].sort(compareWeekKeys);
+}
+
+// ═══════════════════════════════════
+//  INIT SELECTORS
+// ═══════════════════════════════════
+function initSelectors() {
+    const now = new Date();
+    const [curYear, curWeek] = getWeekNumber(now);
+
+    // Year
+    const yr = document.getElementById('yearSel');
+    yr.innerHTML = '';
+    for (let y = curYear - 3; y <= curYear + 2; y++) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = y;
+        if (y === curYear) o.selected = true;
+        yr.appendChild(o);
+    }
+
+    // Week
+    initWeekDropdown(curYear, curWeek);
+
+    yr.addEventListener('change', () => {
+        initWeekDropdown(parseInt(yr.value));
+        updateWeekInfo();
+    });
+    document.getElementById('weekSel').addEventListener('change', updateWeekInfo);
+
+    document.getElementById('currentWeekBadge').textContent = `📍 Current: Week ${curWeek}, ${curYear}`;
+    updateWeekInfo();
+}
+
+function initWeekDropdown(year, selectWeek) {
+    const sel = document.getElementById('weekSel');
+    const total = weeksInYear(year);
+    sel.innerHTML = '';
+    for (let w = 1; w <= total; w++) {
+        const o = document.createElement('option');
+        o.value = w; o.textContent = `Week ${w}`;
+        if (selectWeek && w === selectWeek) o.selected = true;
+        sel.appendChild(o);
+    }
+    if (!selectWeek) {
+        const [, cw] = getWeekNumber(new Date());
+        sel.value = Math.min(cw, total);
+    }
+    updateWeekInfo();
+}
+
+function updateWeekInfo() {
+    const year = parseInt(document.getElementById('yearSel').value);
+    const week = parseInt(document.getElementById('weekSel').value);
+    document.getElementById('weekDateRange').textContent = getWeekDates(year, week);
+    const key = weekKey(year, week);
+    document.getElementById('entryWeekLabel').textContent = `Week ${week}, ${year} (${getWeekDates(year, week)})`;
+
+    // Pre-fill form if data exists
+    Object.entries(graphs).forEach(([gid, graph]) => {
+        const entry = graph.data.find(d => d.week === key);
+        const el = document.getElementById(`inp_${gid}`);
+        if (el) el.value = entry ? entry.value : '';
+    });
+
+    // Refresh breakdown panels
+    Object.keys(graphs).forEach(gid => renderBreakdown(gid));
+
+    // Highlight selected week dot on charts
+    Object.entries(graphs).forEach(([id, g]) => {
+        const chart = charts[id];
+        if (!chart) return;
+        const win = getWindowData(g.data);
+        const selIdx = win.findIndex(d => d.week === key);
+        chart.data.datasets[0].pointBackgroundColor = win.map((_, i) => i === selIdx ? '#22c55e' : '#3b82f6');
+        chart.data.datasets[0].pointRadius = win.map((_, i) => i === selIdx ? 7 : 4);
+        chart.update();
+    });
+}
+
+function goToCurrentWeek() {
+    const [curYear, curWeek] = getWeekNumber(new Date());
+    document.getElementById('yearSel').value = curYear;
+    initWeekDropdown(curYear, curWeek);
+}
+
+// ═══════════════════════════════════
+//  GRAPHS MANAGEMENT
+// ═══════════════════════════════════
+function addGraph() {
+    const name = document.getElementById('newGraphName').value.trim();
+    if (!name) return alert('Please enter a graph name.');
+    const id = 'g' + Date.now();
+    graphs[id] = { name, data: [] };
+    saveGraphs();
+    renderAll();
+    document.getElementById('newGraphName').value = '';
+}
+
+function deleteGraph(id) {
+    if (!confirm(`Delete graph "${graphs[id].name}" and all its data?`)) return;
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+    delete graphs[id];
+    saveGraphs();
+    renderAll();
+}
+
+function renderGraphTags() {
+    const c = document.getElementById('graphTagsList');
+    c.innerHTML = '';
+    Object.entries(graphs).forEach(([id, g]) => {
+        const tag = document.createElement('div');
+        tag.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.9rem;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:2rem;font-size:0.85rem;';
+        tag.innerHTML = `<span style="color:var(--accent);font-weight:600">${g.name}</span><button class="btn-danger" onclick="deleteGraph('${id}')" style="padding:0.15rem 0.5rem;font-size:0.75rem;border-radius:1rem;">✕</button>`;
+        c.appendChild(tag);
+    });
+}
+
+// ═══════════════════════════════════
+//  DATA ENTRY FORM
+// ═══════════════════════════════════
+function renderEntryForm() {
+    const container = document.getElementById('entryInputs');
+    container.innerHTML = '';
+    if (!Object.keys(graphs).length) {
+        container.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:0.9rem;">Add graphs above to start entering data.</div>';
+        return;
+    }
+    Object.entries(graphs).forEach(([id, g]) => {
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = `<label>${g.name}</label><input type="number" id="inp_${id}" placeholder="0" step="any">`;
+        container.appendChild(div);
+    });
+    updateWeekInfo(); // pre-fill if exists
+}
+
+document.getElementById('dataForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const year = parseInt(document.getElementById('yearSel').value);
+    const week = parseInt(document.getElementById('weekSel').value);
+    const key  = weekKey(year, week);
+
+    Object.entries(graphs).forEach(([id, graph]) => {
+        const val = parseFloat(document.getElementById(`inp_${id}`).value) || 0;
+        const ex = graph.data.find(d => d.week === key);
+        if (ex) ex.value = val;
+        else { graph.data.push({ week: key, value: val }); graph.data.sort((a,b) => compareWeekKeys(a.week, b.week)); }
+    });
+
+    saveGraphs();
+    updateDashboard();
+    clearForm();
+    alert(`✅ Week ${week}, ${year} saved!`);
+});
+
+function clearForm() {
+    Object.keys(graphs).forEach(id => {
+        const el = document.getElementById(`inp_${id}`);
+        if (el) el.value = '';
+    });
+}
+
+// ═══════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════
+function makeChart(canvasId) {
+    const el = document.getElementById(canvasId);
+    if (!el) return null;
+    return new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: { labels:[], datasets:[{ data:[], borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', borderWidth:2.5, tension:0.4, fill:true, pointRadius:4, pointHoverRadius:7, pointBackgroundColor:'#3b82f6', pointBorderColor:'#1e293b', pointBorderWidth:2 }] },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{ callbacks:{ title: items => items[0].label, label: item => ` ${item.raw.toLocaleString('en-US')}` } } },
+            scales:{
+                y:{ beginAtZero:true, grid:{color:'rgba(148,163,184,0.1)'}, ticks:{color:'#94a3b8'} },
+                x:{ grid:{color:'rgba(148,163,184,0.1)'}, ticks:{color:'#94a3b8', maxRotation:45} }
+            }
+        }
+    });
+}
+
+function getWindowData(data) {
+    let end = data.length + viewOffset;
+    if (end > data.length) end = data.length;
+    let start = end - 12;
+    if (start < 0) { start = 0; end = Math.min(12, data.length); }
+    return data.slice(start, end);
+}
+
+function renderCharts() {
+    const grid = document.getElementById('chartsGrid');
+
+    // Destroy removed charts
+    Object.keys(charts).forEach(id => {
+        if (!graphs[id]) { charts[id].destroy(); delete charts[id]; }
+    });
+
+    // Remove cards for deleted graphs
+    grid.querySelectorAll('.chart-card').forEach(card => {
+        const id = card.dataset.gid;
+        if (!graphs[id]) card.remove();
+    });
+
+    // Add/update cards
+    Object.entries(graphs).forEach(([id, g]) => {
+        let card = document.getElementById(`card_${id}`);
+        if (!card) {
+            card = document.createElement('div');
+            card.className = 'chart-card';
+            card.id = `card_${id}`;
+            card.dataset.gid = id;
+            card.innerHTML = `
+                <div class="chart-header">
+                    <span class="chart-title">${g.name}</span>
+                    <span class="chart-value" id="val_${id}">0</span>
+                </div>
+                <div class="chart-wrapper">
+                    <div class="chart-canvas"><canvas id="c_${id}"></canvas></div>
+                    <div class="breakdown-panel" id="bp_${id}">
+                        <div class="breakdown-panel-title">📋 Breakdown</div>
+                        <div class="breakdown-week-label" id="bp_week_${id}">—</div>
+                        <div id="bp_items_${id}"></div>
+                        <div class="breakdown-add-row">
+                            <input type="text" id="bp_inp_${id}" placeholder="Add item..." onkeydown="if(event.key==='Enter'){event.preventDefault();addBreakdownItem('${id}');}"/>
+                            <button class="breakdown-add-btn" onclick="addBreakdownItem('${id}')">+</button>
+                        </div>
+                    </div>
+                </div>`;
+            grid.appendChild(card);
+            charts[id] = makeChart(`c_${id}`);
+
+            // Update breakdown when week changes
+            document.getElementById('weekSel').addEventListener('change', () => renderBreakdown(id));
+            document.getElementById('yearSel').addEventListener('change', () => renderBreakdown(id));
+        }
+
+        const win = getWindowData(g.data);
+        const chart = charts[id];
+        if (!chart) return;
+
+        chart.data.labels = win.map(d => {
+            const { year, week } = parseWeekKey(d.week);
+            return `W${String(week).padStart(2,'0')} '${String(year).slice(2)}`;
+        });
+        chart.data.datasets[0].data = win.map(d => d.value);
+
+        // Highlight selected week on chart
+        const selKey = weekKey(parseInt(document.getElementById('yearSel').value), parseInt(document.getElementById('weekSel').value));
+        const selIdx = win.findIndex(d => d.week === selKey);
+        chart.data.datasets[0].pointBackgroundColor = win.map((_, i) => i === selIdx ? '#22c55e' : '#3b82f6');
+        chart.data.datasets[0].pointRadius = win.map((_, i) => i === selIdx ? 7 : 4);
+
+        chart.update();
+
+        const latest = win.length ? win[win.length-1].value : 0;
+        const valEl = document.getElementById(`val_${id}`);
+        if (valEl) valEl.textContent = latest.toLocaleString('en-US');
+
+        renderBreakdown(id);
+    });
+
+    // Empty state
+    if (!Object.keys(graphs).length) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📈</div><p>Add graphs above and enter data to see your charts!</p></div>';
+    }
+}
+
+function updateRangeDisplay() {
+    const allKeys = getAllWeekKeys();
+    if (!allKeys.length) { document.getElementById('rangeDisplay').textContent = 'Last 12 Weeks'; return; }
+
+    // Use first graph for range reference
+    const firstGraph = Object.values(graphs)[0];
+    if (!firstGraph || !firstGraph.data.length) { document.getElementById('rangeDisplay').textContent = 'Last 12 Weeks'; return; }
+
+    const win = getWindowData(firstGraph.data);
+    if (!win.length) { document.getElementById('rangeDisplay').textContent = 'Last 12 Weeks'; return; }
+
+    if (viewOffset === 0 && win.length <= 12) {
+        document.getElementById('rangeDisplay').textContent = 'Last 12 Weeks';
+    } else {
+        document.getElementById('rangeDisplay').textContent = `${fmtWeekKey(win[0].week)} – ${fmtWeekKey(win[win.length-1].week)}`;
+    }
+}
+
+// ═══════════════════════════════════
+//  TABLE
+// ═══════════════════════════════════
+function renderTable() {
+    const thead = document.getElementById('tableHead');
+    const tbody = document.getElementById('tableBody');
+    const graphEntries = Object.entries(graphs);
+
+    thead.innerHTML = `<th>Week</th><th>Date Range</th>${graphEntries.map(([,g]) => `<th>${g.name}</th>`).join('')}<th>Actions</th>`;
+
+    const allKeys = getAllWeekKeys();
+    tbody.innerHTML = '';
+
+    if (!allKeys.length) {
+        tbody.innerHTML = `<tr><td colspan="${graphEntries.length+3}" style="text-align:center;padding:2rem;color:var(--muted)">No data yet. Select a week and enter your numbers above!</td></tr>`;
+        return;
+    }
+
+    [...allKeys].reverse().forEach(key => {
+        const { year, week } = parseWeekKey(key);
+        const row = document.createElement('tr');
+        const cells = graphEntries.map(([id, g]) => {
+            const e = g.data.find(d => d.week === key);
+            const items = g.breakdowns && g.breakdowns[key] ? g.breakdowns[key] : [];
+            const itemsHtml = items.length
+                ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:0.25rem;line-height:1.5;">${items.map(i => `• ${i}`).join('<br/>')}</div>`
+                : '';
+            return `<td>${e ? e.value.toLocaleString('en-US') : '—'}${itemsHtml}</td>`;
+        }).join('');
+        row.innerHTML = `
+            <td>W${String(week).padStart(2,'0')} ${year}</td>
+            <td style="color:var(--muted)">${getWeekDates(year, week)}</td>
+            ${cells}
+            <td>
+                <button class="act-btn act-edit" onclick="editWeek('${key}')">Edit</button>
+                <button class="act-btn act-del" onclick="delWeek('${key}')">Delete</button>
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+
+function editWeek(key) {
+    const { year, week } = parseWeekKey(key);
+    document.getElementById('yearSel').value = year;
+    initWeekDropdown(year, week);
+    document.getElementById('dataEntryCard').scrollIntoView({ behavior:'smooth' });
+}
+
+function delWeek(key) {
+    if (!confirm('Delete all data for this week?')) return;
+    Object.values(graphs).forEach(g => { g.data = g.data.filter(d => d.week !== key); });
+    saveGraphs();
+    updateDashboard();
+}
+
+// ═══════════════════════════════════
+//  BREAKDOWN
+// ═══════════════════════════════════
+function getCurrentWeekKey() {
+    const year = parseInt(document.getElementById('yearSel').value);
+    const week = parseInt(document.getElementById('weekSel').value);
+    return weekKey(year, week);
+}
+
+function renderBreakdown(graphId) {
+    const key = getCurrentWeekKey();
+    const { year, week } = parseWeekKey(key);
+    const graph = graphs[graphId];
+    if (!graph) return;
+
+    const weekLabel = document.getElementById(`bp_week_${graphId}`);
+    if (weekLabel) weekLabel.textContent = `W${String(week).padStart(2,'0')} ${year} · ${getWeekDates(year, week)}`;
+
+    if (!graph.breakdowns) graph.breakdowns = {};
+    const items = graph.breakdowns[key] || [];
+
+    const container = document.getElementById(`bp_items_${graphId}`);
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!items.length) {
+        container.innerHTML = `<div class="breakdown-empty">No items yet.<br/>Add below ↓</div>`;
+        return;
+    }
+
+    items.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'breakdown-item';
+        div.innerHTML = `<span class="breakdown-item-name" title="${item}">• ${item}</span><button class="breakdown-item-del" onclick="deleteBreakdownItem('${graphId}','${key}',${idx})">✕</button>`;
+        container.appendChild(div);
+    });
+}
+
+function addBreakdownItem(graphId) {
+    const inp = document.getElementById(`bp_inp_${graphId}`);
+    const val = inp.value.trim();
+    if (!val) return;
+    const key = getCurrentWeekKey();
+    const graph = graphs[graphId];
+    if (!graph.breakdowns) graph.breakdowns = {};
+    if (!graph.breakdowns[key]) graph.breakdowns[key] = [];
+    graph.breakdowns[key].push(val);
+    saveGraphs();
+    renderBreakdown(graphId);
+    inp.value = '';
+    inp.focus();
+}
+
+function deleteBreakdownItem(graphId, key, idx) {
+    const graph = graphs[graphId];
+    if (!graph.breakdowns || !graph.breakdowns[key]) return;
+    graph.breakdowns[key].splice(idx, 1);
+    if (!graph.breakdowns[key].length) delete graph.breakdowns[key];
+    saveGraphs();
+    renderBreakdown(graphId);
+}
+
+// ═══════════════════════════════════
+//  NAV & VIEW
+// ═══════════════════════════════════
+function shift(n) {
+    const firstGraph = Object.values(graphs)[0];
+    if (!firstGraph || !firstGraph.data.length) return;
+    const max = -(firstGraph.data.length - 12);
+    viewOffset = Math.max(max, Math.min(0, viewOffset + n));
+    renderCharts();
+    updateRangeDisplay();
+}
+
+function resetView() { viewOffset = 0; renderCharts(); updateRangeDisplay(); }
+
+// ═══════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════
+function renderAll() {
+    renderGraphTags();
+    renderEntryForm();
+    renderCharts();
+    renderTable();
+    updateRangeDisplay();
+}
+
+function updateDashboard() {
+    renderCharts();
+    renderTable();
+    updateRangeDisplay();
+}
+
+// ═══════════════════════════════════
+//  NAME MODAL
+// ═══════════════════════════════════
+function openNameModal() {
+    document.getElementById('nameInput').value = employeeName;
+    document.getElementById('nameModal').classList.add('open');
+    setTimeout(() => document.getElementById('nameInput').focus(), 100);
+}
+function closeNameModal() { document.getElementById('nameModal').classList.remove('open'); }
+function saveName() {
+    const n = document.getElementById('nameInput').value.trim();
+    if (!n) return alert('Please enter your name.');
+    employeeName = n;
+    localStorage.setItem('emp_name', n);
+    document.getElementById('empNameBadge').textContent = `👤 ${n}`;
+    closeNameModal();
+}
+
+// ═══════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════
+function saveGraphs() { localStorage.setItem('emp_graphs', JSON.stringify(graphs)); }
+
+// ═══════════════════════════════════
+//  INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+    if (employeeName) document.getElementById('empNameBadge').textContent = `👤 ${employeeName}`;
+    initSelectors();
+    renderAll();
+});
+</script>
+</body>
+</html>
